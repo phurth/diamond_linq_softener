@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .ble_client import SoftenerBleClient, SoftenerState
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SoftenerCoordinator(DataUpdateCoordinator[SoftenerState]):
@@ -16,7 +18,7 @@ class SoftenerCoordinator(DataUpdateCoordinator[SoftenerState]):
     def __init__(self, hass: HomeAssistant, client: SoftenerBleClient) -> None:
         super().__init__(
             hass,
-            hass.helpers.event.logger,  # type: ignore[attr-defined]
+            _LOGGER,
             name=f"{DOMAIN}_coordinator",
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
