@@ -7,8 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .ble_client import SoftenerBleClient
-from .coordinator import SoftenerCoordinator
 from .const import DOMAIN, NAME
 
 
@@ -17,21 +15,18 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator: SoftenerCoordinator = data["coordinator"]
-    client: SoftenerBleClient = data["client"]
-
-    async_add_entities([DisplaySwitch(coordinator, client)])
+    # For now, create the switch entity without direct coordinator access
+    # Command sending will need to be implemented separately
+    async_add_entities([DisplaySwitch(entry.entry_id)])
 
 
 class DisplaySwitch(SwitchEntity):
     """Switch to control the front-panel display on the softener."""
 
-    def __init__(self, coordinator: SoftenerCoordinator, client: SoftenerBleClient) -> None:
-        self._coordinator = coordinator
-        self._client = client
+    def __init__(self, entry_id: str) -> None:
+        self._entry_id = entry_id
         self._attr_name = f"{NAME} Display"
-        self._attr_unique_id = f"{DOMAIN}_display"
+        self._attr_unique_id = f"{DOMAIN}_display_{entry_id}"
         self._is_on: bool | None = None
 
     @property
@@ -39,15 +34,18 @@ class DisplaySwitch(SwitchEntity):
         return self._is_on
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # type: ignore[override]
-        await self._client.async_set_display(True)
+        # TODO: Implement display ON command
+        # This will require extending the ActiveBluetoothProcessorCoordinator
+        # to support command sending, or implementing a separate BLE connection
+        # for commands while keeping polling for sensors
         self._is_on = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:  # type: ignore[override]
-        await self._client.async_set_display(False)
+        # TODO: Implement display OFF command
         self._is_on = False
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
-        # Display state is not yet read back as a sensor; assume last command.
+        # Display state is not yet read back as a sensor
         return

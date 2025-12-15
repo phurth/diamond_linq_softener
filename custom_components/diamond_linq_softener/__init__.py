@@ -1,48 +1,60 @@
 from __future__ import annotations
 
-from typing import Any
+import logging
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.components.bluetooth import BluetoothScanningMode
+from homeassistant.components.bluetooth.active_update_processor import (
+    ActiveBluetoothProcessorCoordinator,
+)
 
-from .ble_client import SoftenerBleClient
-from .coordinator import SoftenerCoordinator
 from .const import DOMAIN
+from .parser import DiamondLinqData
 
-PLATFORMS = ["sensor", "switch"]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
-
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up from YAML (not used; config flow only)."""
-
-    return True
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up the integration from a config entry."""
+    """Set up Diamond Linq softener from a config entry."""
+    address = entry.unique_id
+    data = DiamondLinqData()
 
-    address = entry.data["address"]
-    client = SoftenerBleClient(hass, address)
-    coordinator = SoftenerCoordinator(hass, client)
+    def _needs_poll(service_info, last_poll):
+        # For your softener, we need to poll to get the tt/uu frames
+        # You could optimize this based on advertisement data if the softener broadcasts anything
+        return True  # Always poll for now
 
-    await coordinator.async_config_entry_first_refresh()
+    async def _async_poll(service_info):
+        # This is where we do the active BLE connection and get tt/uu data
+        # service_info.device is the BLE device from HA's bluetooth layer
+        return await data.async_poll(service_info.device)
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        "client": client,
-        "coordinator": coordinator,
-    }
+    coordinator = ActiveBluetoothProcessorCoordinator(
+        hass,
+        _LOGGER,
+        address=address,
+        mode=BluetoothScanningMode.ACTIVE,  # We need active mode for connections
+        update_method=data.update,
+        needs_poll_method=_needs_poll,
+        poll_method=_async_poll,
+        connectable=True,  # We need to connect to subscribe to NUS TX
+    )
 
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(coordinator.async_start())
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    data = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    if data is not None:
-        client: SoftenerBleClient = data["client"]
-        await client.async_disconnect()
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    if unload_ok:
+        await coordinator.async_shutdown()
     return unload_ok
