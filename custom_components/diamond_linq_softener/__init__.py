@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Diamond Linq softener from a config entry."""
-    address = entry.unique_id
+    address = entry.unique_id  # Use the unique_id set by config flow
     data = DiamondLinqData()
 
     def _needs_poll(service_info, last_poll):
@@ -31,6 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def _async_poll(service_info):
         # This is where we do the active BLE connection and get tt/uu data
         # service_info.device is the BLE device from HA's bluetooth layer
+        _LOGGER.debug("Polling device: %s", service_info.device.address)
         return await data.async_poll(service_info.device)
 
     coordinator = ActiveBluetoothProcessorCoordinator(
@@ -42,6 +43,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         needs_poll_method=_needs_poll,
         poll_method=_async_poll,
         connectable=True,  # We need to connect to subscribe to NUS TX
+        # Try increasing timeout for proxy connections
+        poll_debounce_time=10.0,  # Wait longer between polls
     )
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator

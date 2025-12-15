@@ -43,9 +43,13 @@ class DiamondLinqData:
     async def async_poll(self, device: BLEDevice) -> DiamondLinqData:
         """Poll the device by connecting and subscribing to NUS TX."""
 
+        _LOGGER.debug("Starting poll for device: %s", device.address)
+
         client = BleakClient(device)
         try:
+            _LOGGER.debug("Connecting to device...")
             await client.connect()
+            _LOGGER.debug("Connected successfully")
 
             # Reset last-seen frames for this poll
             async with self._lock:
@@ -54,14 +58,18 @@ class DiamondLinqData:
                 self._last_uu_cfg = None
 
             # Subscribe to NUS TX notifications
+            _LOGGER.debug("Subscribing to notifications...")
             await client.start_notify(NUS_TX_UUID, self._notification_callback)
 
             # Send handshake frames on RX to start streams
+            _LOGGER.debug("Sending handshake frames...")
             for payload in [b"t" * 20, b"u" * 20, b"v" * 20]:
                 await client.write_gatt_char(NUS_RX_UUID, payload, response=False)
+                await asyncio.sleep(0.1)  # Small delay between writes
 
             # Wait for notifications
-            await asyncio.sleep(5)  # Adjust based on device response time
+            _LOGGER.debug("Waiting for notifications...")
+            await asyncio.sleep(8)  # Increased wait time
 
             # Snapshot the decoded data
             async with self._lock:
@@ -69,6 +77,7 @@ class DiamondLinqData:
                 if self._last_tt:
                     _, _, _, _, _, f6, _, _ = self._last_tt
                     self.flow_gpm = f6 / 100.0
+                    _LOGGER.debug("Got flow data: %.2f gpm", self.flow_gpm)
 
                 if self._last_uu_usage:
                     _, _, _, _, f5, f6, f7, f8, _, _ = self._last_uu_usage
@@ -76,25 +85,38 @@ class DiamondLinqData:
                     self.avg_daily_use_gal = f6 / 256.0
                     self.treated_today_gal = f7 / 256.0
                     self.regen_hour = f8
+                    _LOGGER.debug("Got usage data: soft=%d, avg=%.1f, today=%.1f, hour=%d",
+                                self.soft_remaining_gal, self.avg_daily_use_gal,
+                                self.treated_today_gal, self.regen_hour)
 
                 if self._last_uu_cfg:
                     *_, cfg_f7, cfg_f8 = self._last_uu_cfg
                     self.salt_config_f7 = cfg_f7
                     self.salt_config_f8 = cfg_f8
+                    _LOGGER.debug("Got config data: f7=%d, f8=%d", cfg_f7, cfg_f8)
 
+            _LOGGER.debug("Poll completed successfully")
+            return self
+
+        except Exception as exc:
+            _LOGGER.error("Error during poll: %s", exc)
+            raise
         finally:
             try:
+                _LOGGER.debug("Cleaning up connection...")
                 await client.stop_notify(NUS_TX_UUID)
                 await client.disconnect()
+                _LOGGER.debug("Disconnected")
             except Exception:
-                pass
-
-        return self
+                _LOGGER.debug("Error during disconnect", exc_info=True)
 
     def _notification_callback(self, handle: int, data: bytes) -> None:
         """Handle incoming NUS TX notifications."""
         if not data:
             return
+
+        hex_data = binascii.hexlify(data).decode()
+        _LOGGER.debug("Notification received: handle=%s len=%d data=%s", handle, len(data), hex_data)
 
         try:
             if data.startswith(b"tt"):
