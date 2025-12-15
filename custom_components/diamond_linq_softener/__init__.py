@@ -43,8 +43,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         needs_poll_method=_needs_poll,
         poll_method=_async_poll,
         connectable=True,  # We need to connect to subscribe to NUS TX
-        # Try increasing timeout for proxy connections
-        poll_debounce_time=10.0,  # Wait longer between polls
     )
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
