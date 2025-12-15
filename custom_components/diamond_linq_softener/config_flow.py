@@ -17,10 +17,13 @@ class DiamondLinqConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
+            # Check if already configured
+            await self.async_set_unique_id(user_input["address"])
+            self._abort_if_unique_id_configured()
+
             return self.async_create_entry(
                 title=NAME,
                 data=user_input,
-                unique_id=user_input["address"]  # Set the unique_id to the MAC address
             )
 
         data_schema = vol.Schema(
