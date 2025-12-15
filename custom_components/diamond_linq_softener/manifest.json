@@ -1,0 +1,19 @@
+{
+  "domain": "diamond_linq_softener",
+  "name": "Diamond Linq Water Softener",
+  "version": "0.1.0",
+  "documentation": "https://github.com/your-user/diamond_linq_softener",
+  "issue_tracker": "https://github.com/your-user/diamond_linq_softener/issues",
+  "requirements": [
+    "bleak>=0.22.0"
+  ],
+  "dependencies": [
+    "bluetooth"
+  ],
+  "codeowners": [
+    "@your-user"
+  ],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "integration_type": "hub"
+}
