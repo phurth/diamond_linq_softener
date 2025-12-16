@@ -10,7 +10,6 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, NAME
 from .parser import DiamondLinqData
@@ -79,24 +78,20 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class SoftenerSensor(
-    CoordinatorEntity[ActiveBluetoothProcessorCoordinator], SensorEntity
-):
+class SoftenerSensor(SensorEntity):
     """Sensor backed by the ActiveBluetoothProcessorCoordinator."""
-
-    entity_description: SoftenerSensorEntityDescription
 
     def __init__(
         self,
         coordinator: ActiveBluetoothProcessorCoordinator,
         description: SoftenerSensorEntityDescription,
     ) -> None:
-        super().__init__(coordinator)
+        self._coordinator = coordinator
         self.entity_description = description
         self._attr_unique_id = f"{DOMAIN}_{description.key}"
 
     @property
     def native_value(self) -> Any:
-        data: DiamondLinqData = self.coordinator.data
+        data: DiamondLinqData = self._coordinator.data
         fn = self.entity_description.value_fn
         return fn(data) if fn is not None else None
