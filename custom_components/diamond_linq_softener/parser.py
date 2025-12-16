@@ -11,7 +11,6 @@
                 _LOGGER.debug("Got usage data: soft=%d, avg=%.1f, today=%.1f, hour=%d",
                             self.soft_remaining_gal, self.avg_daily_use_gal,
                             self.treated_today_gal, self.regen_hour)
-
             elif subtype == 0x0001:
                 # salt / geometry config: last two fields are our raw config codes
                 *_, cfg_f7, cfg_f8 = fields
