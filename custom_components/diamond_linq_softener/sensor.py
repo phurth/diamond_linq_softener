@@ -92,6 +92,7 @@ class SoftenerSensor(SensorEntity):
 
     @property
     def native_value(self) -> Any:
-        data: DiamondLinqData = self._coordinator.data
-        fn = self.entity_description.value_fn
-        return fn(data) if fn is not None else None
+        # ActiveBluetoothProcessorCoordinator doesn't have a .data attribute
+        # We need to access the latest processed data differently
+        # For now, return None until we figure out the correct way
+        return None
