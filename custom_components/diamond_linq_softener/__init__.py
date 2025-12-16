@@ -21,7 +21,9 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Diamond Linq softener from a config entry."""
     address = entry.unique_id  # Use the unique_id set by config flow
-    data = DiamondLinqData()
+
+    # Store the latest data here so sensors can access it
+    latest_data = DiamondLinqData()
 
     def _needs_poll(service_info, last_poll):
         # For your softener, we need to poll to get the tt/uu frames
@@ -32,20 +34,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # This is where we do the active BLE connection and get tt/uu data
         # service_info.device is the BLE device from HA's bluetooth layer
         _LOGGER.debug("Polling device: %s", service_info.device.address)
-        return await data.async_poll(service_info.device)
+        polled_data = await DiamondLinqData().async_poll(service_info.device)
+        # Update our shared data
+        nonlocal latest_data
+        latest_data = polled_data
+        return polled_data
+
+    def update_method(service_info):
+        # This is called with advertisement data, but we mainly use polling
+        return latest_data
 
     coordinator = ActiveBluetoothProcessorCoordinator(
         hass,
         _LOGGER,
         address=address,
         mode=BluetoothScanningMode.ACTIVE,  # We need active mode for connections
-        update_method=data.update,
+        update_method=update_method,
         needs_poll_method=_needs_poll,
         poll_method=_async_poll,
         connectable=True,  # We need to connect to subscribe to NUS TX
     )
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    # Store both coordinator and latest data for sensors to access
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        "coordinator": coordinator,
+        "latest_data": latest_data,
+    }
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(coordinator.async_start())
 

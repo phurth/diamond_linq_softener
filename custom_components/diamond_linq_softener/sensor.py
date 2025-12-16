@@ -69,11 +69,11 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: ActiveBluetoothProcessorCoordinator = hass.data[DOMAIN][entry.entry_id]
+    data = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SoftenerSensor] = []
     for desc in SENSORS:
-        entities.append(SoftenerSensor(coordinator, desc))
+        entities.append(SoftenerSensor(entry.entry_id, data, desc))
 
     async_add_entities(entities)
 
@@ -83,16 +83,18 @@ class SoftenerSensor(SensorEntity):
 
     def __init__(
         self,
-        coordinator: ActiveBluetoothProcessorCoordinator,
+        entry_id: str,
+        hass_data: dict,
         description: SoftenerSensorEntityDescription,
     ) -> None:
-        self._coordinator = coordinator
+        self._entry_id = entry_id
+        self._hass_data = hass_data
         self.entity_description = description
         self._attr_unique_id = f"{DOMAIN}_{description.key}"
 
     @property
     def native_value(self) -> Any:
-        # ActiveBluetoothProcessorCoordinator doesn't have a .data attribute
-        # We need to access the latest processed data differently
-        # For now, return None until we figure out the correct way
-        return None
+        # Access the latest data stored in hass.data
+        latest_data: DiamondLinqData = self._hass_data["latest_data"]
+        fn = self.entity_description.value_fn
+        return fn(latest_data) if fn is not None else None
