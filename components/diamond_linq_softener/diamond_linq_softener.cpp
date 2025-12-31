@@ -30,13 +30,23 @@ void DiamondLinqSoftener::dump_config() {
 }
 
 void DiamondLinqSoftener::update() {
+  ESP_LOGD(TAG, "update() called - node_state=%d, rx_handle=0x%04x, tx_handle=0x%04x, notifications=%s",
+           static_cast<int>(this->node_state), this->rx_handle_, this->tx_handle_,
+           this->notifications_enabled_ ? "YES" : "NO");
+           
   if (this->node_state != esp32_ble_tracker::ClientState::ESTABLISHED) {
-    ESP_LOGW(TAG, "Not connected to device, skipping update");
+    ESP_LOGW(TAG, "Not connected to device (state=%d), skipping update", 
+             static_cast<int>(this->node_state));
     return;
   }
 
   if (this->rx_handle_ == 0) {
     ESP_LOGW(TAG, "RX handle not found, skipping update");
+    return;
+  }
+
+  if (!this->notifications_enabled_) {
+    ESP_LOGW(TAG, "Notifications not enabled yet, skipping update");
     return;
   }
 
@@ -56,16 +66,18 @@ void DiamondLinqSoftener::gattc_event_handler(esp_gattc_cb_event_t event,
   switch (event) {
     case ESP_GATTC_OPEN_EVT: {
       if (param->open.status == ESP_GATT_OK) {
-        ESP_LOGI(TAG, "Connected to device");
+        ESP_LOGI(TAG, "Connected to device - connection established");
         this->authenticated_ = false;
         this->auth_attempted_ = false;
         this->update_auth_status_();
+      } else {
+        ESP_LOGW(TAG, "Connection failed: status=%d", param->open.status);
       }
       break;
     }
 
     case ESP_GATTC_DISCONNECT_EVT: {
-      ESP_LOGI(TAG, "Disconnected from device");
+      ESP_LOGI(TAG, "Disconnected from device - reason=%d", param->disconnect.reason);
       this->rx_handle_ = 0;
       this->tx_handle_ = 0;
       this->cccd_handle_ = 0;
@@ -77,7 +89,7 @@ void DiamondLinqSoftener::gattc_event_handler(esp_gattc_cb_event_t event,
 
     case ESP_GATTC_SEARCH_CMPL_EVT: {
       // Service discovery complete - find our characteristics
-      ESP_LOGI(TAG, "Service discovery complete");
+      ESP_LOGI(TAG, "Service discovery complete - searching for NUS characteristics");
       
       // Look for NUS RX characteristic (write to device)
       auto *rx_char = this->parent()->get_characteristic(
@@ -116,13 +128,16 @@ void DiamondLinqSoftener::gattc_event_handler(esp_gattc_cb_event_t event,
 
     case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
       if (param->reg_for_notify.status == ESP_GATT_OK) {
-        ESP_LOGI(TAG, "Notifications registered successfully");
+        ESP_LOGI(TAG, "Notifications registered successfully - scheduling initial poll");
         this->notifications_enabled_ = true;
         
         // Now that notifications are enabled, do initial poll
         this->set_timeout("initial_poll", 500, [this]() {
+          ESP_LOGI(TAG, "Initial poll timeout triggered");
           this->update();
         });
+      } else {
+        ESP_LOGW(TAG, "Notification registration failed: %d", param->reg_for_notify.status);
       }
       break;
     }
