@@ -130,6 +130,7 @@ void DiamondLinqSoftener::gattc_event_handler(esp_gattc_cb_event_t event,
       if (param->reg_for_notify.status == ESP_GATT_OK) {
         ESP_LOGI(TAG, "Notifications registered successfully - scheduling initial poll");
         this->notifications_enabled_ = true;
+        this->node_state = esp32_ble_tracker::ClientState::ESTABLISHED;
         
         // Now that notifications are enabled, do initial poll
         this->set_timeout("initial_poll", 500, [this]() {
