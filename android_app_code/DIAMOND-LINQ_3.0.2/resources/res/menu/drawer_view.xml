@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:aapt="http://schemas.android.com/aapt">
+    <group android:checkableBehavior="single">
+        <item android:id="@+id/nav_device_list" android:title="@string/npm_device_list"/>
+        <item android:id="@+id/nav_dashboard" android:title="@string/npm_dashboard"/>
+        <item android:id="@+id/nav_advanced_settings" android:title="@string/npm_advanced_settings"/>
+        <item android:id="@+id/nav_status_and_history" android:title="@string/npm_status_and_history"/>
+        <item android:id="@+id/nav_dealer_information" android:visible="false" android:title="@string/npm_dealer_information"/>
+    </group>
+    <group android:checkableBehavior="single">
+        <item android:id="@+id/blank" android:title="@string/menu_divider" android:checkable="false"/>
+        <item android:icon="@drawable/ic_regen_now" android:id="@+id/nav_regen_now" android:title="@string/npm_regen_now_menu" android:checkable="false"/>
+        <item android:icon="@drawable/ic_regen_next" android:id="@+id/nav_regen_next" android:title="@string/npm_regen_next_menu" android:checkable="false"/>
+    </group>
+</menu>

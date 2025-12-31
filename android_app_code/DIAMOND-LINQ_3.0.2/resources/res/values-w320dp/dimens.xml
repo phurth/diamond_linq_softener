@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="di_button_space_margin">12dp</dimen>
+    <dimen name="di_item_spacing">16dp</dimen>
+    <dimen name="di_label_text_size">16sp</dimen>
+    <dimen name="di_page_padding">16dp</dimen>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:aapt="http://schemas.android.com/aapt" android:orientation="horizontal" android:id="@+id/dual_pane" android:layout_width="match_parent" android:layout_height="match_parent">
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@+id/intro_container" android:visibility="gone" android:layout_width="match_parent" android:layout_height="match_parent">
+        <androidx.viewpager.widget.ViewPager android:id="@+id/intro_viewpager" android:layout_width="match_parent" android:layout_height="match_parent" app:layout_constraintBottom_toBottomOf="0" app:layout_constraintEnd_toEndOf="0" app:layout_constraintStart_toStartOf="0" app:layout_constraintTop_toTopOf="0"/>
+        <me.relex.circleindicator.CircleIndicator android:id="@+id/intro_indicator" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:layout_marginStart="16dp" app:layout_constraintBottom_toBottomOf="0" app:layout_constraintStart_toStartOf="0"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <FrameLayout android:id="@+id/nav_pane" android:background="@color/screen_background" android:layout_width="wrap_content" android:layout_height="match_parent"/>
+    <FrameLayout android:id="@+id/content_pane" android:background="@color/screen_background" android:layout_width="match_parent" android:layout_height="match_parent">
+        <ProgressBar android:layout_gravity="center" android:id="@+id/connection_progress" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="-25dp" android:indeterminateDrawable="@drawable/progress" style="@style/Widget.ProgressBar.Inverse"/>
+        <TextView android:textColor="@color/progress_bar_text_color" android:layout_gravity="center" android:id="@+id/progress_status" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/npm_status_text_margin_top" style="@style/signature_view.StatusOverlayText"/>
+    </FrameLayout>
+</LinearLayout>

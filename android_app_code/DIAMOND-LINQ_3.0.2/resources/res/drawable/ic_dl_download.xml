@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:aapt="http://schemas.android.com/aapt" android:height="22dp" android:width="22dp" android:viewportWidth="22" android:viewportHeight="22">
+    <path android:fillColor="@color/domi_download" android:pathData="M9.168,0C7.7852,0 6.668,1.1211 6.668,2.5L6.668,9.168L3.957,9.168C2.7852,9.168 2.5352,9.3555 3.543,10.3633L9.0352,15.8594C10.8711,17.6914 10.8477,17.6992 12.6836,15.8594L18.1523,10.3633C19.1563,9.3555 18.8203,9.168 17.7617,9.168L15,9.168L15,2.5C15,1.1211 13.8789,0 12.5,0ZM0,15.832L0,19.168C0,20.5469 1.1211,21.668 2.5,21.668L19.168,21.668C20.5469,21.668 21.668,20.5469 21.668,19.168L21.668,15.832L20,15.832L20,19.168C20,19.625 19.625,20 19.168,20L2.5,20C2.043,20 1.668,19.625 1.668,19.168L1.668,15.832Z" android:fillAlpha="1" android:fillType="0"/>
+</vector>

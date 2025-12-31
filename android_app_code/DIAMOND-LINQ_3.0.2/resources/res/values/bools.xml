@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="abc_action_bar_embed_tabs">true</bool>
+    <bool name="abc_allow_stacked_button_bar">false</bool>
+    <bool name="abc_config_actionMenuItemAllCaps">true</bool>
+    <bool name="disable_secondary_logo">true</bool>
+    <bool name="draw_graph_filled">false</bool>
+    <bool name="enable_feature_slides">false</bool>
+    <bool name="mtrl_btn_textappearance_all_caps">true</bool>
+    <bool name="permanently_hide_dealer_info_buttons">false</bool>
+    <bool name="show_dealer_info_buttons_by_default">false</bool>
+    <bool name="show_privacy_policy">false</bool>
+    <bool name="show_short_url_in_contact_dialog">true</bool>
+</resources>
