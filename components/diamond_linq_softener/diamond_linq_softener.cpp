@@ -194,6 +194,31 @@ void DiamondLinqSoftener::send_pa_frame_() {
   this->write_to_device_(pa_frame, 20);
 }
 
+void DiamondLinqSoftener::send_pw_frame_() {
+  // PW frame format from Android app (when password is set):
+  // Bytes 0-11: 0x74 padding
+  // Bytes 12-13: 0x50 0x57 ("PW")
+  // Bytes 14-17: Password digits as BCD (NOT ASCII!)
+  // Bytes 18-19: 0x74 padding
+  uint8_t pw_frame[20];
+  memset(pw_frame, FRAME_TT, 20);  // Fill with 0x74
+  
+  pw_frame[12] = 0x50;  // 'P'
+  pw_frame[13] = 0x57;  // 'W'
+  
+  // Convert password string to BCD digits
+  // "1234" becomes bytes [1, 2, 3, 4]
+  int pwd = atoi(this->password_.c_str());
+  pw_frame[14] = (pwd / 1000) % 10;  // Thousands
+  pw_frame[15] = (pwd / 100) % 10;   // Hundreds
+  pw_frame[16] = (pwd / 10) % 10;    // Tens
+  pw_frame[17] = pwd % 10;           // Units
+
+  ESP_LOGI(TAG, "Sending PW frame (password=%s): %s", 
+           this->password_.c_str(), format_hex_pretty(pw_frame, 20).c_str());
+  this->write_to_device_(pw_frame, 20);
+}
+
 void DiamondLinqSoftener::send_tt_request_() {
   uint8_t tt_frame[20];
   memset(tt_frame, FRAME_TT, 20);  // Fill with 0x74
@@ -308,9 +333,12 @@ void DiamondLinqSoftener::parse_tt_frame_(const uint8_t *data, uint16_t length) 
         this->send_uu_request_();
       });
     } else {
-      ESP_LOGW(TAG, "Authentication FAILED - trying again");
-      // Could try PW format here as fallback
-      this->state_ = State::IDLE;
+      ESP_LOGW(TAG, "PA authentication FAILED - trying PW format with password");
+      // Try PW format as fallback (for password-protected devices)
+      this->set_timeout("send_pw", 50, [this]() {
+        this->send_pw_frame_();
+        this->state_ = State::AUTHENTICATING_PW;
+      });
     }
   }
 }

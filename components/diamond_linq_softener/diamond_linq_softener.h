@@ -50,6 +50,7 @@ class DiamondLinqSoftener : public PollingComponent, public ble_client::BLEClien
 
  protected:
   void send_pa_frame_();
+  void send_pw_frame_();
   void send_tt_request_();
   void send_uu_request_();
   void send_vv_request_();
