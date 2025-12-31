@@ -50,13 +50,21 @@ void DiamondLinqSoftener::update() {
     return;
   }
 
-  // Reset state for new poll cycle
-  this->state_ = State::WAITING_FOR_TT;
-  this->auth_attempted_ = false;
+  // Skip authentication - just poll data directly!
+  // Password is only required for WRITE operations (config changes)
+  // Reading sensor data (tt/uu/vv) works without auth
+  ESP_LOGI(TAG, "Polling device data (no auth needed for reads)");
   
-  // Send initial tt request to trigger authentication sequence
-  ESP_LOGI(TAG, "Starting poll cycle - sending tt request");
   this->send_tt_request_();
+  
+  // Queue uu and vv requests with delays
+  this->set_timeout("send_uu", 200, [this]() {
+    this->send_uu_request_();
+  });
+  this->set_timeout("send_vv", 400, [this]() {
+    this->send_vv_request_();
+  });
+  
   this->last_request_time_ = millis();
 }
 
@@ -300,59 +308,9 @@ void DiamondLinqSoftener::parse_tt_frame_(const uint8_t *data, uint16_t length) 
     this->update_auth_status_();
   }
 
-  // Handle state machine
-  if (this->state_ == State::WAITING_FOR_TT) {
-    if (!this->authenticated_ && !this->auth_attempted_) {
-      // Not authenticated yet - send PA frame
-      ESP_LOGI(TAG, "Not authenticated, sending PA frame");
-      this->auth_attempted_ = true;
-      this->state_ = State::AUTHENTICATING;
-      
-      // Small delay then send PA
-      this->set_timeout("send_pa", 50, [this]() {
-        this->send_pa_frame_();
-      });
-    } else if (this->authenticated_) {
-      // Authenticated - request uu data
-      ESP_LOGI(TAG, "Authenticated! Requesting uu data");
-      this->state_ = State::REQUESTING_UU;
-      this->set_timeout("send_uu", 100, [this]() {
-        this->send_uu_request_();
-      });
-    } else {
-      // Auth attempted but still not authenticated
-      ESP_LOGW(TAG, "Authentication failed - PA frame rejected");
-      this->state_ = State::IDLE;
-    }
-  } else if (this->state_ == State::AUTHENTICATING) {
-    // Got tt response after PA frame
-    if (this->authenticated_) {
-      ESP_LOGI(TAG, "Authentication SUCCEEDED!");
-      this->state_ = State::REQUESTING_UU;
-      this->set_timeout("send_uu", 100, [this]() {
-        this->send_uu_request_();
-      });
-    } else {
-      ESP_LOGW(TAG, "PA authentication FAILED - trying PW format with password");
-      // Try PW format as fallback (for password-protected devices)
-      this->state_ = State::AUTHENTICATING_PW;
-      this->set_timeout("send_pw", 50, [this]() {
-        this->send_pw_frame_();
-      });
-    }
-  } else if (this->state_ == State::AUTHENTICATING_PW) {
-    // Got tt response after PW frame
-    if (this->authenticated_) {
-      ESP_LOGI(TAG, "PW authentication SUCCEEDED!");
-      this->state_ = State::REQUESTING_UU;
-      this->set_timeout("send_uu", 100, [this]() {
-        this->send_uu_request_();
-      });
-    } else {
-      ESP_LOGW(TAG, "PW authentication FAILED - giving up");
-      this->state_ = State::IDLE;
-    }
-  }
+  // Just log auth status but don't require it for data access
+  // Password only needed for WRITE operations
+  ESP_LOGD(TAG, "tt frame parsed - auth status logged but not enforced for reads");
 }
 
 void DiamondLinqSoftener::parse_uu_frame_(const uint8_t *data, uint16_t length) {
@@ -379,13 +337,7 @@ void DiamondLinqSoftener::parse_uu_frame_(const uint8_t *data, uint16_t length) 
     this->days_to_empty_sensor_->publish_state(data[10]);
   }
 
-  // Now request vv data
-  if (this->state_ == State::REQUESTING_UU) {
-    this->state_ = State::REQUESTING_VV;
-    this->set_timeout("send_vv", 100, [this]() {
-      this->send_vv_request_();
-    });
-  }
+  ESP_LOGD(TAG, "uu frame parsed successfully");
 }
 
 void DiamondLinqSoftener::parse_vv_frame_(const uint8_t *data, uint16_t length) {
@@ -401,9 +353,7 @@ void DiamondLinqSoftener::parse_vv_frame_(const uint8_t *data, uint16_t length) 
     this->hardness_sensor_->publish_state(data[4]);
   }
 
-  // Poll cycle complete
-  this->state_ = State::IDLE;
-  ESP_LOGI(TAG, "Poll cycle complete");
+  ESP_LOGD(TAG, "vv frame parsed successfully");
 }
 
 void DiamondLinqSoftener::update_auth_status_() {

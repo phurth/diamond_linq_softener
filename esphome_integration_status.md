@@ -56,10 +56,12 @@ This document tracks the development of a native ESPHome component for the Diamo
 - [x] Firmware compiled successfully (ESPHome 2025.12.3, esp-idf framework)
 - [x] Firmware uploaded via OTA to ESP32 at 192.168.1.171
 - [x] BLE connection ESTABLISHED to softener
+- [x] Set node_state to ESTABLISHED properly
+- [x] PA authentication implemented and tested
+- [x] PW (password) authentication implemented and tested
 
 ### 🔄 In Progress
-- [ ] Waiting for authentication sequence to trigger
-- [ ] Need to verify PA frame is accepted by softener
+- [ ] **BLOCKED**: Need to remove device password via mobile app
 
 ### ❌ Pending
 - [ ] Confirm tt/uu/vv frame parsing works
@@ -68,18 +70,26 @@ This document tracks the development of a native ESPHome component for the Diamo
 
 ## Current Issue
 
-The logs show:
+**Update: December 31, 2025 - 15:20**
+
+Authentication is being **rejected by the device**. Both PA and PW authentication methods have been implemented and tested:
+
+1. **PA Frame (Random Token)**: `74 74 50 41` + 16 random bytes - **REJECTED**
+2. **PW Frame (Password)**: `74 74...74 74 50 57 01 02 03 04 74 74` (password "1234" in BCD) - **REJECTED**
+
+ESP32 log evidence:
 ```
-[14:46:16.872][W][diamond_linq_softener:034]: Not connected to device, skipping update
+[15:18:28.663] Sending PA frame: 74.74.50.41.CD.4C.71.D2.47.F6.42.53.2B.88.24.A0.27.85.D2.DE
+[15:18:28.778] tt frame: F3=0x0038, authenticated=NO
+[15:18:28.783] PA authentication FAILED - trying PW format with password
+[15:18:28.859] Sending PW frame (password=1234): 74.74.74.74.74.74.74.74.74.74.74.74.50.57.01.02.03.04.74.74
+[15:18:28.997] tt frame: F3=0x0038, authenticated=NO
+[15:18:29.002] PW authentication FAILED - giving up
 ```
 
-This occurs when `update()` is called by the 60-second polling interval. The BLE client shows "ESTABLISHED" in config dump, but the `update()` check finds the connection not ready. This may be a timing issue where:
-1. Connection is established
-2. Service discovery is in progress
-3. `update()` is called before characteristics are discovered
-4. `rx_handle_` is still 0, or `node_state` not yet ESTABLISHED
+**Root Cause**: The device had a password set via the mobile app. Analysis of old BLE traces shows PA authentication only worked BEFORE the password was set. Once password "1234" was configured, the same PA frames that previously worked are now rejected.
 
-The component does have an "initial_poll" timeout that should trigger after notifications are registered, but we haven't seen logs showing that sequence completing.
+**Solution Required**: Remove the password from the device using the Diamond Linq mobile app. The app has a password setting that appears to enable a protection mode we haven't fully reverse-engineered. Without mobile app access to disable this, authentication will continue to fail.
 
 ## Key Files
 
