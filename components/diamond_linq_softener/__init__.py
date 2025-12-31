@@ -5,11 +5,8 @@ from esphome.components import ble_client, sensor, text_sensor
 from esphome.const import (
     CONF_ID,
     CONF_PASSWORD,
-    DEVICE_CLASS_WATER,
     STATE_CLASS_MEASUREMENT,
-    UNIT_GALLON,
     UNIT_PERCENT,
-    ICON_WATER,
 )
 
 CODEOWNERS = ["@phurth"]
@@ -37,16 +34,14 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_FLOW_RATE): sensor.sensor_schema(
                 unit_of_measurement="GPM",
                 accuracy_decimals=2,
-                device_class=DEVICE_CLASS_WATER,
                 state_class=STATE_CLASS_MEASUREMENT,
                 icon="mdi:water-pump",
             ),
             cv.Optional(CONF_SOFT_REMAINING): sensor.sensor_schema(
-                unit_of_measurement=UNIT_GALLON,
+                unit_of_measurement="gal",
                 accuracy_decimals=0,
-                device_class=DEVICE_CLASS_WATER,
                 state_class=STATE_CLASS_MEASUREMENT,
-                icon=ICON_WATER,
+                icon="mdi:water",
             ),
             cv.Optional(CONF_HARDNESS): sensor.sensor_schema(
                 unit_of_measurement="gpg",
