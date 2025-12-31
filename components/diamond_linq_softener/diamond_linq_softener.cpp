@@ -335,10 +335,22 @@ void DiamondLinqSoftener::parse_tt_frame_(const uint8_t *data, uint16_t length) 
     } else {
       ESP_LOGW(TAG, "PA authentication FAILED - trying PW format with password");
       // Try PW format as fallback (for password-protected devices)
+      this->state_ = State::AUTHENTICATING_PW;
       this->set_timeout("send_pw", 50, [this]() {
         this->send_pw_frame_();
-        this->state_ = State::AUTHENTICATING_PW;
       });
+    }
+  } else if (this->state_ == State::AUTHENTICATING_PW) {
+    // Got tt response after PW frame
+    if (this->authenticated_) {
+      ESP_LOGI(TAG, "PW authentication SUCCEEDED!");
+      this->state_ = State::REQUESTING_UU;
+      this->set_timeout("send_uu", 100, [this]() {
+        this->send_uu_request_();
+      });
+    } else {
+      ESP_LOGW(TAG, "PW authentication FAILED - giving up");
+      this->state_ = State::IDLE;
     }
   }
 }

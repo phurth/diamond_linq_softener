@@ -83,8 +83,10 @@ class DiamondLinqSoftener : public PollingComponent, public ble_client::BLEClien
     IDLE,
     WAITING_FOR_TT,
     AUTHENTICATING,
+    AUTHENTICATING_PW,
     REQUESTING_UU,
     REQUESTING_VV,
+    DATA_RECEIVED
   } state_{State::IDLE};
   
   uint32_t last_request_time_{0};
