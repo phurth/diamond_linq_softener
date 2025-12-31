@@ -12,6 +12,7 @@ from esphome.const import (
     ICON_WATER,
 )
 
+CODEOWNERS = ["@phurth"]
 DEPENDENCIES = ["ble_client"]
 AUTO_LOAD = ["sensor", "text_sensor"]
 
