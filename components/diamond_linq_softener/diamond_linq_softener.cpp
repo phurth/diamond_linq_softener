@@ -18,7 +18,7 @@ void DiamondLinqSoftener::setup() {
 
 void DiamondLinqSoftener::dump_config() {
   ESP_LOGCONFIG(TAG, "Diamond Linq Softener:");
-  ESP_LOGCONFIG(TAG, "  MAC Address: %s", this->parent()->address_str().c_str());
+  ESP_LOGCONFIG(TAG, "  MAC Address: %s", this->parent()->address_str());
   ESP_LOGCONFIG(TAG, "  Password: %s", this->password_.c_str());
   LOG_SENSOR("  ", "Flow Rate", this->flow_sensor_);
   LOG_SENSOR("  ", "Soft Remaining", this->soft_remaining_sensor_);

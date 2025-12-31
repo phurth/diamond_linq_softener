@@ -1,0 +1,85 @@
+esphome:
+  name: "bt-proxy-freezers"
+  friendly_name: bt-proxy-freezers
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: esp-idf
+
+web_server:
+  port: 80
+
+logger:
+  level: DEBUG
+
+api:
+
+esp32_ble:
+  max_connections: 4
+
+ota:
+  platform: esphome
+
+bluetooth_proxy:
+  active: true
+
+wifi:
+  ssid: TestSSID
+  password: TestPassword
+  manual_ip:
+    static_ip: 192.168.1.171
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+    dns1: 192.168.1.1
+
+button:
+  - platform: restart
+    name: "Restart Device"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: ESP IP Address
+    dns_address:
+      name: ESP DNS Address
+    mac_address:
+      name: ESP MAC Address
+    ssid:
+      name: ESP Connected SSID
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/phurth/diamond_linq_softener
+      ref: master
+    components: [diamond_linq_softener]
+    refresh: 0s
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+ble_client:
+  - mac_address: "F1:01:E7:C8:D2:C8"
+    id: softener_ble_client
+
+diamond_linq_softener:
+  ble_client_id: softener_ble_client
+  password: "1234"
+  update_interval: 60s
+
+  flow_rate:
+    name: "Softener Flow Rate"
+  soft_remaining:
+    name: "Soft Water Remaining"
+  hardness:
+    name: "Water Hardness"
+  salt_level:
+    name: "Salt Level"
+  days_to_empty:
+    name: "Days to Empty"
+  serial_number:
+    name: "Serial Number"
+  auth_status:
+    name: "Auth Status"
