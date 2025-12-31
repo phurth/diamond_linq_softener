@@ -14,3 +14,14 @@ HANDLE_RX = 0x000D
 
 # Coordinator update interval (seconds)
 DEFAULT_SCAN_INTERVAL = 30
+
+# Configuration keys
+CONF_AUTH_TOKEN = "auth_token"
+CONF_PASSWORD = "password"
+
+# Default password for PA authentication (from app analysis)
+# The app stores per-device passwords with key "PWD-{address}", default is "1234"
+DEFAULT_PASSWORD = "1234"
+
+# Default auth token (empty means derive from password)
+DEFAULT_AUTH_TOKEN = ""

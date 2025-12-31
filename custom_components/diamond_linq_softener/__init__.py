@@ -1,16 +1,23 @@
+"""Diamond Linq Water Softener integration for Home Assistant."""
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.components.bluetooth import BluetoothScanningMode
-from homeassistant.components.bluetooth.active_update_processor import (
-    ActiveBluetoothProcessorCoordinator,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN, 
+    DEFAULT_SCAN_INTERVAL, 
+    CONF_AUTH_TOKEN, 
+    DEFAULT_AUTH_TOKEN,
+    CONF_PASSWORD,
+    DEFAULT_PASSWORD,
+)
+from .ble_client import SoftenerBleClient
 from .parser import DiamondLinqData
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
@@ -18,64 +25,116 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 _LOGGER = logging.getLogger(__name__)
 
 
+class SoftenerDataUpdateCoordinator(DataUpdateCoordinator[DiamondLinqData]):
+    """Coordinator that manages polling the softener via BLE."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        client: SoftenerBleClient,
+        address: str,
+    ) -> None:
+        """Initialize the coordinator.
+        
+        Args:
+            hass: Home Assistant instance
+            client: The BLE client for the softener
+            address: BLE address for logging
+        """
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_{address}",
+            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+        )
+        self.client = client
+        self.address = address
+
+    async def _async_update_data(self) -> DiamondLinqData:
+        """Fetch data from the softener.
+        
+        This is called periodically by the coordinator.
+        """
+        _LOGGER.debug("Coordinator updating data for %s", self.address)
+        
+        try:
+            data = await self.client.async_poll_once()
+            
+            if data.soft_remaining_gal is None and data.flow_gpm is None:
+                _LOGGER.warning(
+                    "No data received from softener %s - device may be out of range",
+                    self.address
+                )
+            
+            return data
+            
+        except Exception as err:
+            _LOGGER.error("Error polling softener %s: %s", self.address, err)
+            # Try to disconnect and reconnect on next poll
+            await self.client.async_disconnect()
+            raise UpdateFailed(f"Error communicating with softener: {err}") from err
+
+    async def async_shutdown(self) -> None:
+        """Shut down the coordinator and disconnect."""
+        _LOGGER.info("Shutting down coordinator for %s", self.address)
+        await self.client.async_disconnect()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Diamond Linq softener from a config entry."""
-    address = entry.unique_id  # Use the unique_id set by config flow
+    # Get the device address from config entry
+    address = entry.data.get("address") or entry.unique_id
+    
+    if not address:
+        _LOGGER.error("No address configured for Diamond Linq softener")
+        return False
 
-    # Create shared data object that will be updated by polling
-    shared_data = DiamondLinqData()
+    _LOGGER.info("Setting up Diamond Linq softener at %s", address)
 
-    def _needs_poll(service_info, last_poll):
-        # For your softener, we need to poll to get the tt/uu frames
-        # You could optimize this based on advertisement data if the softener broadcasts anything
-        return True  # Always poll for now
+    # Get the auth token and password if configured
+    auth_token = entry.data.get(CONF_AUTH_TOKEN, DEFAULT_AUTH_TOKEN)
+    password = entry.data.get(CONF_PASSWORD, DEFAULT_PASSWORD)
+    
+    if auth_token:
+        _LOGGER.info("Auth token configured (length=%d)", len(auth_token))
+    else:
+        _LOGGER.info("No auth token configured - will use password '%s' for PA auth", password)
 
-    async def _async_poll(service_info):
-        # This is where we do the active BLE connection and get tt/uu data
-        # service_info.device is the BLE device from HA's bluetooth layer
-        _LOGGER.debug("Polling device: %s", service_info.device.address)
-        # Update the shared data object with new polled data
-        polled_data = await DiamondLinqData().async_poll(service_info.device)
-        # Copy the polled data into our shared object
-        nonlocal shared_data
-        shared_data.flow_gpm = polled_data.flow_gpm
-        shared_data.soft_remaining_gal = polled_data.soft_remaining_gal
-        shared_data.avg_daily_use_gal = polled_data.avg_daily_use_gal
-        shared_data.treated_today_gal = polled_data.treated_today_gal
-        shared_data.regen_hour = polled_data.regen_hour
-        shared_data.salt_config_f7 = polled_data.salt_config_f7
-        shared_data.salt_config_f8 = polled_data.salt_config_f8
-        return polled_data
+    # Create the BLE client with auth configuration
+    client = SoftenerBleClient(hass, address, auth_token=auth_token, password=password)
+    
+    # Create the coordinator
+    coordinator = SoftenerDataUpdateCoordinator(hass, client, address)
 
-    def update_method(service_info):
-        # This is called with advertisement data, but we mainly use polling
-        return shared_data
+    # Do an initial data fetch
+    await coordinator.async_config_entry_first_refresh()
 
-    coordinator = ActiveBluetoothProcessorCoordinator(
-        hass,
-        _LOGGER,
-        address=address,
-        mode=BluetoothScanningMode.ACTIVE,  # We need active mode for connections
-        update_method=update_method,
-        needs_poll_method=_needs_poll,
-        poll_method=_async_poll,
-        connectable=True,  # We need to connect to subscribe to NUS TX
-    )
-
-    # Store both coordinator and shared data for sensors to access
+    # Store the coordinator for access by platforms
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "coordinator": coordinator,
-        "latest_data": shared_data,
+        "client": client,
     }
+
+    # Set up platforms (sensor, switch)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(coordinator.async_start())
+
+    # Register shutdown handler
+    entry.async_on_unload(coordinator.async_shutdown)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    _LOGGER.info("Unloading Diamond Linq softener entry %s", entry.entry_id)
+    
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # Note: ActiveBluetoothProcessorCoordinator doesn't have async_shutdown method
-    # The coordinator will be automatically cleaned up by HA
+    
+    if unload_ok:
+        data = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if data:
+            coordinator = data.get("coordinator")
+            if coordinator:
+                await coordinator.async_shutdown()
+    
     return unload_ok

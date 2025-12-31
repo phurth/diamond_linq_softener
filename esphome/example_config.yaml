@@ -1,0 +1,114 @@
+# Diamond Linq Water Softener - ESPHome Configuration Example
+#
+# This example shows how to configure ESPHome to communicate with
+# a Diamond Linq water softener via BLE.
+#
+# Usage:
+# 1. Copy this file to your ESPHome config directory
+# 2. Update the MAC address to match your water softener
+# 3. Update the password if you've changed it from "1234"
+# 4. Optionally use external_components to load from GitHub
+
+substitutions:
+  device_name: water-softener
+  friendly_name: Water Softener
+  # Replace with your water softener's MAC address
+  softener_mac: "F1:01:E7:C8:D2:C8"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  
+  # Enable fallback hotspot
+  ap:
+    ssid: "${device_name} Fallback"
+    password: !secret fallback_password
+
+# Load the Diamond Linq component from GitHub
+external_components:
+  - source:
+      type: git
+      url: https://github.com/phurth/diamond_linq_softener
+      ref: master
+    components: [diamond_linq_softener]
+    refresh: 1d
+
+# BLE tracker to scan for devices
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+# BLE client for the water softener
+ble_client:
+  - mac_address: ${softener_mac}
+    id: softener_ble_client
+
+# Diamond Linq Softener component
+diamond_linq_softener:
+  ble_client_id: softener_ble_client
+  password: "1234"  # Default password, change if needed
+  update_interval: 60s
+  
+  # Sensors
+  flow_rate:
+    name: "${friendly_name} Flow Rate"
+    id: softener_flow_rate
+    
+  soft_remaining:
+    name: "${friendly_name} Soft Water Remaining"
+    id: softener_soft_remaining
+    
+  hardness:
+    name: "${friendly_name} Water Hardness"
+    id: softener_hardness
+    
+  salt_level:
+    name: "${friendly_name} Salt Level"
+    id: softener_salt_level
+    
+  days_to_empty:
+    name: "${friendly_name} Days to Empty"
+    id: softener_days_to_empty
+    
+  serial_number:
+    name: "${friendly_name} Serial Number"
+    id: softener_serial
+    
+  auth_status:
+    name: "${friendly_name} Auth Status"
+    id: softener_auth_status
+
+# Optional: Add a text sensor to show connection status
+text_sensor:
+  - platform: ble_client
+    ble_client_id: softener_ble_client
+    name: "${friendly_name} BLE Status"
+
+# Optional: Add a button to manually refresh
+button:
+  - platform: template
+    name: "${friendly_name} Refresh"
+    on_press:
+      - component.update: softener_flow_rate
